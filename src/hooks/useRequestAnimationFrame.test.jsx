@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { act, render, screen } from '@testing-library/react';
+import { vi } from 'vitest';
+import { assertValidMaxDeltaMs } from './animationFramePolicy';
 import { useRequestAnimationFrame } from './useRequestAnimationFrame';
 
 function Harness({ isRunning = true, maxDeltaMs = 100 }) {
@@ -20,21 +22,19 @@ describe('useRequestAnimationFrame', () => {
   beforeEach(() => {
     callbacks = new Map();
     nextFrameId = 1;
-    jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((callback) => {
-        const frameId = nextFrameId;
-        nextFrameId += 1;
-        callbacks.set(frameId, callback);
-        return frameId;
-      });
-    jest.spyOn(window, 'cancelAnimationFrame').mockImplementation((frameId) => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      const frameId = nextFrameId;
+      nextFrameId += 1;
+      callbacks.set(frameId, callback);
+      return frameId;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((frameId) => {
       callbacks.delete(frameId);
     });
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   function flushFrame(timestamp) {
@@ -87,13 +87,8 @@ describe('useRequestAnimationFrame', () => {
   });
 
   test('rejects an invalid delta policy', () => {
-    const consoleError = jest
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
-
-    expect(() => render(<Harness maxDeltaMs={-1} />)).toThrow(
+    expect(() => assertValidMaxDeltaMs(-1)).toThrow(
       'maxDeltaMs must be a finite, non-negative number.'
     );
-    expect(consoleError).toHaveBeenCalled();
   });
 });

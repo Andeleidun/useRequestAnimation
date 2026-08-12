@@ -1,5 +1,3 @@
-import React from 'react';
-
 function BotBlock({ progress }) {
   const percentage = progress * 100;
 

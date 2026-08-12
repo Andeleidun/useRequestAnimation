@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import BotBlock from './components/botBlock';
+import { useState } from 'react';
+import BotBlock from './components/BotBlock';
 import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion';
 import { useRequestAnimationFrame } from './hooks/useRequestAnimationFrame';
 import './App.css';
@@ -10,7 +10,7 @@ function App() {
   const prefersReducedMotion = usePrefersReducedMotion();
   const [isRunning, setIsRunning] = useState(true);
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [statusMessage, setStatusMessage] = useState('Animation running.');
+  const [lastAction, setLastAction] = useState('initial');
   const canAnimate = isRunning && !prefersReducedMotion;
 
   useRequestAnimationFrame(
@@ -20,29 +20,29 @@ function App() {
     { isRunning: canAnimate }
   );
 
-  useEffect(() => {
-    if (prefersReducedMotion) {
-      setStatusMessage(
-        'Animation paused because reduced motion is enabled in system settings.'
-      );
-    } else {
-      setStatusMessage(isRunning ? 'Animation running.' : 'Animation paused.');
-    }
-  }, [isRunning, prefersReducedMotion]);
+  let statusMessage;
+  if (prefersReducedMotion) {
+    statusMessage =
+      lastAction === 'restart'
+        ? 'Animation reset. Reduced motion keeps it paused.'
+        : 'Animation paused because reduced motion is enabled in system settings.';
+  } else if (lastAction === 'restart') {
+    statusMessage = 'Animation restarted.';
+  } else if (lastAction === 'resume') {
+    statusMessage = 'Animation resumed.';
+  } else {
+    statusMessage = isRunning ? 'Animation running.' : 'Animation paused.';
+  }
 
   const toggleAnimation = () => {
     const next = !isRunning;
     setIsRunning(next);
-    setStatusMessage(next ? 'Animation resumed.' : 'Animation paused.');
+    setLastAction(next ? 'resume' : 'pause');
   };
 
   const restartAnimation = () => {
     setElapsedMs(0);
-    setStatusMessage(
-      prefersReducedMotion
-        ? 'Animation reset. Reduced motion keeps it paused.'
-        : 'Animation restarted.'
-    );
+    setLastAction('restart');
   };
 
   return (

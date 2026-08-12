@@ -9,6 +9,7 @@ lerna-debug.log*
 
 # Generated output
 build/
+dist/
 coverage/
 .eslintcache
 

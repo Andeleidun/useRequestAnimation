@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { assertValidMaxDeltaMs } from './animationFramePolicy';
 
 export function useRequestAnimationFrame(
   callback,
@@ -6,9 +7,7 @@ export function useRequestAnimationFrame(
 ) {
   const callbackRef = useRef(callback);
 
-  if (!Number.isFinite(maxDeltaMs) || maxDeltaMs < 0) {
-    throw new RangeError('maxDeltaMs must be a finite, non-negative number.');
-  }
+  assertValidMaxDeltaMs(maxDeltaMs);
 
   useEffect(() => {
     callbackRef.current = callback;

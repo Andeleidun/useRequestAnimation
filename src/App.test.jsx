@@ -1,16 +1,17 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
 import App from './App';
 
 const originalMatchMedia = window.matchMedia;
 
 beforeEach(() => {
-  jest.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
-  jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
+  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
 });
 
 afterEach(() => {
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
   window.matchMedia = originalMatchMedia;
 });
 
@@ -32,12 +33,12 @@ test('disables motion when the system preference requests it', () => {
   let handlePreferenceChange;
   const mediaQuery = {
     matches: true,
-    addEventListener: jest.fn((eventName, callback) => {
+    addEventListener: vi.fn((eventName, callback) => {
       handlePreferenceChange = callback;
     }),
-    removeEventListener: jest.fn(),
+    removeEventListener: vi.fn(),
   };
-  window.matchMedia = jest.fn().mockReturnValue(mediaQuery);
+  window.matchMedia = vi.fn().mockReturnValue(mediaQuery);
 
   render(<App />);
 
