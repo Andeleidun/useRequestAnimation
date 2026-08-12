@@ -1,0 +1,26 @@
+Working notes: requestAnimationFrame
+
+The repository README is the canonical explanation. These notes preserve the
+core timing decisions used by the example.
+
+- requestAnimationFrame schedules one callback before a future repaint. The
+  callback must request another frame to continue the loop.
+- Use the callback timestamp to calculate elapsed time. Do not assume 60 frames
+  per second because displays and browser scheduling vary.
+- Browsers commonly pause callbacks in background tabs. Treat that as a reason
+  to define resume behavior, not as a guarantee that replaces cleanup.
+- Keep the latest request identifier and pass it to cancelAnimationFrame when
+  the animation pauses, the owning effect restarts, or the component unmounts.
+- Decide how a long interval should behave. This example caps a single delta at
+  100 milliseconds to prevent a large visual jump.
+- Respect prefers-reduced-motion. This example does not schedule its loop when
+  that preference is active.
+- Prefer CSS or the Web Animations API when they express the animation more
+  directly. Use requestAnimationFrame when JavaScript must calculate or
+  coordinate each visual update.
+
+Primary references:
+
+https://developer.mozilla.org/docs/Web/API/Window/requestAnimationFrame
+https://developer.mozilla.org/docs/Web/API/Window/cancelAnimationFrame
+https://developer.mozilla.org/docs/Web/CSS/@media/prefers-reduced-motion
