@@ -1,140 +1,211 @@
-# React request-animation-frame hook example
+# Build a resilient `requestAnimationFrame` hook in React
 
-This example implements a reusable React hook around
-`requestAnimationFrame`. The demo moves a block from browser-supplied
-timestamps, supports pause and restart controls, cancels pending work, bounds
-large resume deltas, and honors the user’s reduced-motion preference.
+This repository accompanies the [full tutorial](article/tutorial.md). Together,
+they build and verify a reusable React hook that drives motion from browser
+timestamps, reads the latest callback without restarting its loop, cancels
+pending work, bounds long frame gaps, and stops JavaScript scheduling when the
+user prefers reduced motion.
 
-## Audience and outcome
+The finished interface makes those behaviors visible. You can pause, resume,
+and restart the block while the hook owns timing and cleanup.
 
-This repository is for React developers who understand state, effects, refs,
-and effect cleanup. After running it, you can explain why an animation loop
-must use the frame timestamp, keep the latest callback without restarting the
-loop, and cancel its most recent frame request during cleanup.
+## What you will learn
 
-The hook controls scheduling only. It is not a physics engine, timeline
-library, or replacement for CSS transitions and animations.
+This example is for React developers who already understand components, state,
+effects, and effect cleanup. Work through it to learn how to:
 
-## Mental model
+- calculate progress from the timestamp supplied by the browser;
+- use a React Effect Event to keep callback logic current without reconnecting
+  the scheduling effect;
+- cancel the latest outstanding request when a loop pauses or unmounts;
+- choose and test an explicit policy for long frame gaps; and
+- respond when `prefers-reduced-motion` changes while the page is open.
 
-`requestAnimationFrame` schedules one callback before a future repaint. The
-callback must schedule the next frame if the animation should continue. Each
-callback receives a high-resolution timestamp, so movement can be based on
-elapsed time rather than assuming a particular display refresh rate.
+The hook owns scheduling, not animation design. It is not a physics engine,
+timeline system, or automatic replacement for CSS animations, the Web
+Animations API, canvas, or a dedicated animation library.
 
-`useRequestAnimationFrame` separates two responsibilities:
+## Before you start
 
-1. A ref always points to the latest caller callback, so ordinary renders do
-   not restart the loop.
-2. An effect owns the frame lifecycle. It starts only while `isRunning` is
-   true and cancels the latest frame identifier during cleanup.
+Use one of these Node.js lines:
 
-The hook caps a single delta at 100 milliseconds by default. That policy keeps
-this visual demo from jumping across the track after a long suspension. A real
-simulation should choose its own pause, catch-up, or fixed-step policy.
+- Node.js 22.22.2 or later in the 22.x line
+- Node.js 24.15 or later in the 24.x line
+- Node.js 26
+
+You also need npm and a modern browser with `requestAnimationFrame`,
+`cancelAnimationFrame`, and `matchMedia`.
+
+The lockfile resolves React 19.2.8, Vite 8.2.1, and Vitest 4.1.11. The declared
+Node ranges reflect the current direct toolchain's engine intersection. The
+checks reported for this revision ran on Node.js 24.15.0.
 
 ## Run the example
 
-Prerequisites:
-
-- Node.js 20.19 or later in the 20.x line, Node.js 22.13 or later in the
-  22.x line, or Node.js 24 or later, with npm.
-- A browser with `requestAnimationFrame`, `cancelAnimationFrame`, and
-  `matchMedia`.
-
-From this directory:
+From this directory, install the exact dependency closure and start Vite:
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open the local URL printed by the development server. Pause, resume, and
-restart the block. Enable reduced motion in the operating system and reload to
-confirm the animation remains paused.
+Open the local URL printed by Vite. The block should move from Start to Loop and
+wrap every 2.4 seconds. Pause it, resume it, and restart it from a paused state.
+Then change the operating system's reduced-motion setting while the page is
+open. The loop should stop and the control state should update.
 
-## Verify the example
+Stop the development server with `Ctrl+C`.
 
-Run static analysis and the behavior tests once:
+## Understand the hook contract
 
-```sh
-npm run lint
-npm run test:ci
+`useRequestAnimationFrame(callback, options)` calls `callback` with the current
+browser timestamp and the bounded time since the previous frame:
+
+```js
+{
+  timestamp,
+  deltaMs,
+}
 ```
 
-Create the production bundle:
+`isRunning` defaults to `true`. Setting it to `false` prevents scheduling and
+cancels the latest outstanding request during cleanup.
+
+`maxDeltaMs` defaults to `100`. The hook clamps each raw timestamp difference
+to the inclusive range from zero through that value. The 100 millisecond cap is
+a visual policy for this example, not a browser guarantee.
+
+The callback must be a function, `isRunning` must be a Boolean, and
+`maxDeltaMs` must be finite and non-negative. Changing `isRunning` or
+`maxDeltaMs` starts a fresh timing sequence whose first delta is zero. Changing
+only the callback updates the Effect Event and leaves the scheduling effect in
+place.
+
+## Follow the implementation
+
+Use these files with the tutorial:
+
+- `article/tutorial.md` teaches the complete implementation and recovery path.
+- `src/hooks/useRequestAnimationFrame.js` owns frame scheduling and cleanup.
+- `src/hooks/animationFramePolicy.js` defines the public argument policy.
+- `src/hooks/usePrefersReducedMotion.js` tracks the live media query.
+- `src/App.jsx` connects the hooks to observable controls and status text.
+- `src/**/*.test.jsx` covers lifecycle, boundaries, interaction, and accessible
+  behavior.
+- `scripts/verifyTutorial.mjs` binds tutorial commands, source listings, the
+  exact test excerpt, and documented commands to the repository.
+
+## Verify the pair
+
+Run the complete local gate:
 
 ```sh
-npm run build
+npm run check
 ```
 
-Run `npm run preview` to inspect the generated `dist` directory locally.
+That command checks formatting, runs ESLint, executes the tests, reconciles the
+tutorial with canonical source, verifies the teaching history, and builds the
+production bundle.
 
-The tests verify timestamp-based progress, bounded large deltas, paused state,
-latest-frame cancellation, controls, visible status feedback, and the
-reduced-motion branch. They do not measure frame rate, battery use, paint cost,
-or smoothness on real hardware.
+The automated suite covers timestamp progress, ordinary and bounded gaps,
+negative deltas, fresh callbacks, pause and unmount cancellation, zero-valued
+request identifiers, synchronous teardown, policy changes, the Strict Mode
+probe, invalid options, initial media-query synchronization, modern and legacy
+media-query listeners,
+reduced-motion changes, restart behavior, status feedback, heading structure,
+and keyboard focus order.
 
-## Failure and recovery
+Use the individual commands when you need to localize a failure:
 
-Pausing or unmounting cancels the latest scheduled frame. Resuming creates a
-new loop whose first delta is zero, so time spent paused is not applied as
-movement. A negative timestamp difference is normalized to zero, and an
-unusually large difference is capped.
+| Command                   | What it establishes                                                 |
+| ------------------------- | ------------------------------------------------------------------- |
+| `npm run test`            | Runs Vitest in watch mode while you work.                           |
+| `npm run test:ci`         | Runs the behavior suite once.                                       |
+| `npm run lint`            | Checks the JavaScript and JSX with ESLint.                          |
+| `npm run format:check`    | Checks the files owned by Prettier without changing them.           |
+| `npm run verify:tutorial` | Reconciles marked tutorial content with the repository.             |
+| `npm run build`           | Produces the optimized bundle in `dist`.                            |
+| `npm run preview`         | Serves the generated bundle for local review.                       |
+| `npm run check`           | Runs formatting, lint, tests, tutorial verification, and the build. |
 
-If installation fails, remove the generated `node_modules` directory and run
-`npm ci` again with the committed lockfile. If a production build is stale,
-remove the generated `dist` directory and rerun `npm run build`. Reloading the
-page resets the in-memory animation state.
+Automation does not establish smoothness, frame rate, battery use, paint cost,
+screen-reader usability, full keyboard usability, zoom and reflow, rendered
+contrast, forced-color behavior, or complete accessibility conformance. Review
+those states manually before making a release claim.
 
-Stop the development server with `Ctrl+C`. The example creates no account,
-remote data, persistent browser storage, or background service.
+## Recover from common failures
+
+If `npm ci` fails, confirm that your Node.js version is inside a supported line,
+then retry with the committed lockfile.
+
+If the first frame jumps, confirm that `previousTimestamp` starts at `null` and
+that the first delta is zero. If one delayed frame moves too far, inspect the
+`maxDeltaMs` policy before changing animation math.
+
+If pause or unmount leaves work queued, confirm that cleanup marks the loop
+inactive and cancels the most recently stored request identifier. If an inline
+callback restarts the loop on every render, keep it out of the scheduling
+effect's dependencies and call it through the hook-local Effect Event.
+
+If reduced motion does not apply, inspect the `matchMedia` query and its paired
+listener cleanup. If tutorial reconciliation fails, update the named source and
+marked tutorial snippet together, then rerun `npm run verify:tutorial`.
+
+Reload the page to reset in-memory animation state. The example creates no
+account, remote data, persistent browser storage, service worker, or background
+service. Rerun `npm run build` when you need a fresh production bundle.
 
 ## Accessibility behavior
 
-- Native buttons provide keyboard and touch interaction with visible focus.
-- Pause and restart actions return a polite visible status message.
-- The decorative moving block is hidden from the accessibility tree.
-- A reduced-motion preference prevents frame scheduling and disables the pause
-  control while restart remains a harmless reset.
+The interface uses native buttons for keyboard, pointer, and touch input. Focus
+styles add an outline and offset without relying on color alone. Pause,
+restart, and reduced-motion results appear in a polite status region, while the
+moving track remains decorative and hidden from the accessibility tree.
 
-Manual keyboard, zoom, high-contrast, reduced-motion, and assistive-technology
-review is still required for a release claim.
+The animation policy readout exposes meaningful state as text. The JavaScript
+loop stops when `prefers-reduced-motion: reduce` matches. Responsive styles
+stack the readout and cards at narrower widths, and forced-color styles add
+platform-color borders to the primary regions.
 
-## Dependency security status
+These implementation choices still need representative browser and assistive
+technology review before release.
 
-On 2026-08-11, the exact Vite 8.2.1 and Vitest 4.1.10 dependency closure
-reported zero known vulnerabilities through npm audit. This replaces the
-retired Create React App dependency tree that previously reported 28 findings.
-Re-run the audit whenever the lockfile changes because registry advisories and
-the resolved closure can change.
+## Make the production decision explicitly
 
-## Limits and production differences
+Updating React state on every frame fits this focused lesson. Do not assume it
+fits a complex interface. Profile the real feature and consider CSS, the Web
+Animations API, canvas, or a specialized library when they can own the work
+more directly.
 
-- Re-rendering React state on every frame is appropriate for this small lesson,
-  not automatically for a complex animation. Profile the actual interface and
-  consider CSS, Web Animations, canvas, or an animation library when they better
-  fit the rendering model.
-- Browsers usually pause frame callbacks in background tabs, but exact behavior
-  varies. Application state must not depend on receiving every frame.
-- The default delta cap is a product policy, not a web-platform guarantee.
-- Git history preserves the earlier React 18 and Create React App 5 checkpoint.
-  The current checkpoint uses Vite 8.2.1 and Vitest 4.1.10 while keeping the
-  application behavior and React version stable.
-- Vite 8 targets its current modern browser baseline by default. Confirm the
-  production browser support policy before delivery and add a reviewed legacy
-  build strategy only when the intended audience requires it.
+Background-tab scheduling varies, so application correctness must not depend on
+receiving every frame. A simulation may also need fixed steps or a deliberate
+catch-up policy instead of this example's visual delta cap.
 
-## Sources
+Vite targets a modern browser baseline by default. Define the production
+browser policy before delivery. A production loop may also need explicit
+integration with navigation, page visibility, application pause, or an
+external clock.
 
-- [MDN: `requestAnimationFrame`](https://developer.mozilla.org/docs/Web/API/Window/requestAnimationFrame)
-- [MDN: `cancelAnimationFrame`](https://developer.mozilla.org/docs/Web/API/Window/cancelAnimationFrame)
-- [MDN: `prefers-reduced-motion`](https://developer.mozilla.org/docs/Web/CSS/@media/prefers-reduced-motion)
+## Dependencies, assets, and license
+
+On 2026-09-15, npm reported zero known vulnerabilities for the exact locked
+dependency closure after the React 19.2.8 and test-tool update. Registry
+advisories can change, so rerun the audit whenever the lockfile changes and as
+part of normal maintenance.
+
+The existing [MIT License](LICENSE) applies to this repository. The example uses
+one local SVG favicon and requires no external fonts, data, or runtime services.
+Its redistribution provenance still requires owner confirmation before release.
+
+## Primary sources
+
+- [MDN: `requestAnimationFrame`](https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame)
+- [MDN: `cancelAnimationFrame`](https://developer.mozilla.org/en-US/docs/Web/API/Window/cancelAnimationFrame)
+- [MDN: `prefers-reduced-motion`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media/prefers-reduced-motion)
 - [React: Synchronizing with Effects](https://react.dev/learn/synchronizing-with-effects)
-- [React: Sunsetting Create React App](https://react.dev/blog/2025/02/14/sunsetting-create-react-app)
-- [Vite: Getting Started](https://vite.dev/guide/)
-- [Vitest: Getting Started](https://vitest.dev/guide/)
-
-## License
-
-The existing [MIT License](LICENSE) applies to this example repository.
+- [React: `useEffect`](https://react.dev/reference/react/useEffect)
+- [React: `useEffectEvent`](https://react.dev/reference/react/useEffectEvent)
+- [React: `useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore)
+- [React 19.2 release notes](https://react.dev/blog/2025/10/01/react-19-2)
+- [Node.js releases](https://nodejs.org/en/about/previous-releases)
+- [Vite 8 announcement](https://vite.dev/blog/announcing-vite8)

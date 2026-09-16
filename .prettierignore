@@ -1,0 +1,5 @@
+# Tutorial markers must remain directly adjacent to their headings and fences.
+article/tutorial.md
+
+# Prettier cannot infer a parser for a standalone SVG file.
+public/favicon.svg

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
-function getInitialPreference() {
+function getSnapshot() {
   if (typeof window === 'undefined') {
     return false;
   }
@@ -10,32 +10,33 @@ function getInitialPreference() {
   return window.matchMedia?.(REDUCED_MOTION_QUERY).matches ?? false;
 }
 
+function subscribe(onStoreChange) {
+  if (typeof window === 'undefined' || !window.matchMedia) {
+    return () => {};
+  }
+
+  const mediaQuery = window.matchMedia(REDUCED_MOTION_QUERY);
+  const handleChange = () => onStoreChange();
+
+  if (
+    typeof mediaQuery.addEventListener === 'function' &&
+    typeof mediaQuery.removeEventListener === 'function'
+  ) {
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }
+
+  if (
+    typeof mediaQuery.addListener === 'function' &&
+    typeof mediaQuery.removeListener === 'function'
+  ) {
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
+  }
+
+  return () => {};
+}
+
 export function usePrefersReducedMotion() {
-  const [prefersReducedMotion, setPrefersReducedMotion] =
-    useState(getInitialPreference);
-
-  useEffect(() => {
-    if (!window.matchMedia) {
-      return undefined;
-    }
-
-    const mediaQuery = window.matchMedia(REDUCED_MOTION_QUERY);
-    const handleChange = (event) => setPrefersReducedMotion(event.matches);
-
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener('change', handleChange);
-    } else {
-      mediaQuery.addListener(handleChange);
-    }
-
-    return () => {
-      if (mediaQuery.removeEventListener) {
-        mediaQuery.removeEventListener('change', handleChange);
-      } else {
-        mediaQuery.removeListener(handleChange);
-      }
-    };
-  }, []);
-
-  return prefersReducedMotion;
+  return useSyncExternalStore(subscribe, getSnapshot, () => false);
 }

@@ -15,7 +15,7 @@ afterEach(() => {
   window.matchMedia = originalMatchMedia;
 });
 
-test('pauses and restarts the animation with visible status feedback', async () => {
+test('restarts a paused loop with visible status and progress feedback', async () => {
   const user = userEvent.setup();
   render(<App />);
 
@@ -27,9 +27,39 @@ test('pauses and restarts the animation with visible status feedback', async () 
 
   await user.click(screen.getByRole('button', { name: 'Restart animation' }));
   expect(screen.getByRole('status')).toHaveTextContent('Animation restarted.');
+  expect(
+    screen.getByText('Loop progress').nextElementSibling
+  ).toHaveTextContent('0%');
+  expect(
+    screen.getByRole('button', { name: 'Pause animation' })
+  ).toBeInTheDocument();
+  expect(window.requestAnimationFrame).toHaveBeenCalledTimes(2);
 });
 
-test('disables motion when the system preference requests it', () => {
+test('exposes a logical page structure and keyboard-operable controls', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+
+  expect(
+    screen.getByRole('heading', {
+      level: 1,
+      name: 'Build a resilient animation frame loop',
+    })
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole('group', { name: 'Animation controls' })
+  ).toBeInTheDocument();
+
+  await user.tab();
+  expect(screen.getByRole('button', { name: 'Pause animation' })).toHaveFocus();
+  await user.tab();
+  expect(
+    screen.getByRole('button', { name: 'Restart animation' })
+  ).toHaveFocus();
+});
+
+test('disables motion when the system preference requests it', async () => {
+  const user = userEvent.setup();
   let handlePreferenceChange;
   const mediaQuery = {
     matches: true,
@@ -50,12 +80,17 @@ test('disables motion when the system preference requests it', () => {
   );
   expect(window.requestAnimationFrame).not.toHaveBeenCalled();
 
+  await user.click(screen.getByRole('button', { name: 'Restart animation' }));
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'Animation reset. Reduced motion keeps it paused.'
+  );
+
   act(() => {
     mediaQuery.matches = false;
     handlePreferenceChange({ matches: false });
   });
 
   expect(screen.getByRole('button', { name: 'Pause animation' })).toBeEnabled();
-  expect(screen.getByRole('status')).toHaveTextContent('Animation running.');
+  expect(screen.getByRole('status')).toHaveTextContent('Animation restarted.');
   expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
 });

@@ -1,38 +1,55 @@
-import { useEffect, useRef } from 'react';
-import { assertValidMaxDeltaMs } from './animationFramePolicy';
+import { useEffect, useEffectEvent } from 'react';
+import {
+  assertValidAnimationFrameCallback,
+  assertValidIsRunning,
+  assertValidMaxDeltaMs,
+  DEFAULT_MAX_DELTA_MS,
+} from './animationFramePolicy';
 
 export function useRequestAnimationFrame(
   callback,
-  { isRunning = true, maxDeltaMs = 100 } = {}
+  { isRunning = true, maxDeltaMs = DEFAULT_MAX_DELTA_MS } = {}
 ) {
-  const callbackRef = useRef(callback);
-
+  assertValidAnimationFrameCallback(callback);
+  assertValidIsRunning(isRunning);
   assertValidMaxDeltaMs(maxDeltaMs);
 
-  useEffect(() => {
-    callbackRef.current = callback;
-  }, [callback]);
+  const onAnimationFrame = useEffectEvent(callback);
 
   useEffect(() => {
     if (!isRunning) {
       return undefined;
     }
 
-    let frameId;
-    let previousTimestamp;
+    let frameId = null;
+    let previousTimestamp = null;
+    let isActive = true;
 
     const animate = (timestamp) => {
+      if (!isActive) {
+        return;
+      }
+
       const rawDelta =
-        previousTimestamp === undefined ? 0 : timestamp - previousTimestamp;
+        previousTimestamp === null ? 0 : timestamp - previousTimestamp;
       const deltaMs = Math.min(Math.max(rawDelta, 0), maxDeltaMs);
       previousTimestamp = timestamp;
 
-      callbackRef.current({ timestamp, deltaMs });
-      frameId = window.requestAnimationFrame(animate);
+      onAnimationFrame({ timestamp, deltaMs });
+
+      if (isActive) {
+        frameId = window.requestAnimationFrame(animate);
+      }
     };
 
     frameId = window.requestAnimationFrame(animate);
 
-    return () => window.cancelAnimationFrame(frameId);
+    return () => {
+      isActive = false;
+
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
   }, [isRunning, maxDeltaMs]);
 }

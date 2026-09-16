@@ -1,26 +1,31 @@
-Working notes: requestAnimationFrame
+Historical working notes: requestAnimationFrame
 
-The repository README is the canonical explanation. These notes preserve the
-core timing decisions used by the example.
+Use the full tutorial in article/tutorial.md and the repository README as the
+canonical explanations. This file preserves the original teaching-history
+artifact and the decisions that shaped the finished example.
 
-- requestAnimationFrame schedules one callback before a future repaint. The
-  callback must request another frame to continue the loop.
-- Use the callback timestamp to calculate elapsed time. Do not assume 60 frames
-  per second because displays and browser scheduling vary.
-- Browsers commonly pause callbacks in background tabs. Treat that as a reason
-  to define resume behavior, not as a guarantee that replaces cleanup.
-- Keep the latest request identifier and pass it to cancelAnimationFrame when
-  the animation pauses, the owning effect restarts, or the component unmounts.
-- Decide how a long interval should behave. This example caps a single delta at
-  100 milliseconds to prevent a large visual jump.
-- Respect prefers-reduced-motion. This example does not schedule its loop when
-  that preference is active.
-- Prefer CSS or the Web Animations API when they express the animation more
-  directly. Use requestAnimationFrame when JavaScript must calculate or
-  coordinate each visual update.
+The browser gives each animation-frame callback a timestamp. Use that timestamp
+to derive elapsed time instead of counting frames, because refresh rates and
+frame delivery vary.
 
-Primary references:
+Carry these decisions into the example:
 
-https://developer.mozilla.org/docs/Web/API/Window/requestAnimationFrame
-https://developer.mozilla.org/docs/Web/API/Window/cancelAnimationFrame
-https://developer.mozilla.org/docs/Web/CSS/@media/prefers-reduced-motion
+- Derive progress from the callback timestamp instead of assuming a frame rate.
+- Treat requestAnimationFrame as a one-shot request whose callback schedules
+  the next frame.
+- Read the latest callback through a React Effect Event without reconnecting
+  the scheduling effect.
+- Cancel the latest request during pause, effect restart, and unmount cleanup.
+- Prevent a callback from scheduling another request after synchronous
+  teardown.
+- Start a resumed timing sequence with a zero delta.
+- Clamp negative deltas to zero and cap one long delta at 100 milliseconds.
+- Stop JavaScript scheduling when prefers-reduced-motion requests less motion.
+- Prefer CSS or the Web Animations API when JavaScript does not need to
+  calculate each visual state.
+
+When CSS can describe the motion, prefer CSS. Use requestAnimationFrame when
+each frame depends on JavaScript state or browser timing.
+
+For the complete walkthrough and primary references, continue with README.md
+and article/tutorial.md.

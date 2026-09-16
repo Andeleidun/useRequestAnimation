@@ -3,35 +3,37 @@
   "version": "0.1.0",
   "type": "module",
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "check": "npm run format:check && npm run lint && npm run test:ci && npm run verify:tutorial && npm run build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "format": "prettier --write \"src/**/*.{js,jsx,css}\" \"public/*.json\" eslint.config.js index.html vite.config.js README.md package.json",
-    "format:check": "prettier --check \"src/**/*.{js,jsx,css}\" \"public/*.json\" eslint.config.js index.html vite.config.js README.md package.json",
+    "format": "prettier --write \"src/**/*.{js,jsx,css}\" \"scripts/**/*.mjs\" eslint.config.js index.html vite.config.js README.md pair.md design.md sources.md history.md verification.md package.json",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,css}\" \"scripts/**/*.mjs\" eslint.config.js index.html vite.config.js README.md pair.md design.md sources.md history.md verification.md package.json",
     "test": "vitest",
-    "test:ci": "vitest run"
+    "test:ci": "vitest run",
+    "verify:tutorial": "node scripts/verifyTutorial.mjs && node scripts/verifyTeachingHistory.mjs"
   },
   "engines": {
-    "node": "^20.19.0 || ^22.13.0 || >=24.0.0"
+    "node": "^22.22.2 || ^24.15.0 || ^26.0.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@testing-library/jest-dom": "^6.4.8",
-    "@testing-library/react": "^16.0.0",
-    "@testing-library/user-event": "^14.5.2",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.4",
     "@vitejs/plugin-react": "6.0.5",
     "eslint": "10.8.1",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.4",
-    "globals": "17.10.0",
+    "globals": "17.11.0",
     "jsdom": "30.0.1",
     "prettier": "3.9.6",
     "vite": "8.2.1",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   }
 }
